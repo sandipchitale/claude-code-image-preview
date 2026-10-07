@@ -3,11 +3,13 @@ import type { Register } from 'claude-code'
 
 import type { PreviewFile } from '../types'
 import { openFile, revealFile } from './os'
+import { droppedImagePath, tokens } from './paths'
 
 const draft = atom({ plugin: 'image-preview', key: 'draft' } as const, '')
 const files = atom({ plugin: 'image-preview', key: 'files' } as const, {} as Record<string, PreviewFile>)
 const origins = atom({ plugin: 'image-preview', key: 'origins' } as const, {} as Record<string, string>)
-const selected = atom({ plugin: 'image-preview', key: 'selected' } as const, 0)
+// Images the user cleared from the pane, so a rescan doesn't bring them back.
+const cleared = atom({ plugin: 'image-preview', key: 'cleared' } as const, {} as Record<string, boolean>)
 
 // Dropped or pasted file paths not yet matched to an [Image #N] chip.
 let pending: string[] = []
@@ -15,30 +17,34 @@ let pending: string[] = []
 // Icon labels of one width, so the buttons match.
 const PAD = (icon: string) => `  ${icon}  `
 
-const tokens = (text: string) =>
-  [...text.matchAll(/\[Image #?(\d+)\]/g)].map(m => Number(m[1]))
-
 async function scan($: any) {
   const sid = await $.session.id()
   const r = await $.process.run(['find', '/private/tmp', '/tmp', '-maxdepth', '5', '-path', `*/${sid}/images/*`])
+  const gone = await read($, cleared)
   const found: Record<string, PreviewFile> = {}
   for (const line of r.stdout.split('\n')) {
     const m = /\/images\/(\d+)\.[A-Za-z]+$/.exec(line.trim())
-    if (m) found[m[1]] = { path: line.trim(), generation: Date.now() }
+    if (m && !gone[m[1]]) found[m[1]] = { path: line.trim() }
   }
   await update($, files, cur => ({ ...cur, ...found }))
 }
 
 async function locate($: any, n: number) {
   const sid = await $.session.id()
-  const r = await $.process.run(['find', '/private/tmp', '/tmp', '-maxdepth', '5', '-path', `*/${sid}/images/${n}.png`])
+  const r = await $.process.run(['find', '/private/tmp', '/tmp', '-maxdepth', '5', '-path', `*/${sid}/images/${n}.*`])
   const path = r.stdout.split('\n').find((l: string) => l.trim())
   if (path) {
-    await update($, files, m => ({ ...m, [n]: { path, generation: Date.now() } }))
+    await update($, files, m => ({ ...m, [n]: { path } }))
   }
 }
 
 const PANE = 'image-preview'
+
+async function clearAll($: any) {
+  const ids = Object.keys(await read($, files))
+  await update($, cleared, m => ({ ...m, ...Object.fromEntries(ids.map(id => [id, true])) }))
+  await update($, files, () => ({}))
+}
 
 async function toggle($: any) {
   const isUp = (await $.ui.panes()).some((p: any) => p.id === PANE)
@@ -51,15 +57,18 @@ async function toggle($: any) {
 }
 
 async function show($: any, n: number) {
+  const run = (argv: string[]) => $.process.run(argv)
+  const origin = (await read($, origins))[n]
+  // The dropped file may have been moved since, so the saved copy is the fallback.
+  if (origin && (await openFile(run, origin))) return true
   let have = (await read($, files))[n]
   if (!have) {
     await locate($, n)
     have = (await read($, files))[n]
   }
-  if (!have) return false
-  const origin = (await read($, origins))[n]
-  await openFile((argv: string[]) => $.process.run(argv), origin ?? have.path)
-  return true
+  if (have && (await openFile(run, have.path))) return true
+  await $.ui.toast(`Image #${n} isn't saved yet or can't be found`)
+  return false
 }
 
 export const register: Register = on => {
@@ -88,13 +97,9 @@ export const register: Register = on => {
     const after: string =
       result?.text ?? e.text.slice(0, e.start) + e.inputText + e.text.slice(e.end)
     await update($, draft, () => after)
-    const raw = e.inputText
-      .trim()
-      .replace(/^(['"])(.*)\1$/, '$2')
-      .replace(/^file:\/\//, '')
-      .replace(/\\(.)/g, '$1')
-    const isPath = /^\/.+\.(png|jpe?g|gif|webp|heic|tiff?|bmp)$/i.test(raw)
-    if (isPath) pending.push(decodeURIComponent(raw))
+    if (after.trim() === '') pending = []
+    const dropped = droppedImagePath(e.inputText)
+    if (dropped) pending.push(dropped)
     const before = new Set(tokens(e.text))
     for (const n of tokens(after)) {
       if (before.has(n)) continue
@@ -106,14 +111,15 @@ export const register: Register = on => {
 
   on('prompt.submit', async ($, e, next) => {
     await update($, draft, () => '')
+    pending = []
     const sent = await next(e)
     await scan($).catch(() => {})
     return sent
   })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
-    const { Box, Text, Button } = $.ui.resolve(e)
-    const [text, known] = await Promise.all([read($, draft), read($, files)])
+    const { Box, Button } = $.ui.resolve(e)
+    const text = await read($, draft)
     const ns = [...new Set(tokens(text))]
     return (
       <Box flexDirection="row" gap={1}>
@@ -144,7 +150,7 @@ export const register: Register = on => {
     // button's hover scope, and sits at a position the fixed layout gives.
     const ROW0 = 4
     const ROWH = 3
-    const COLS = [2, 14, 26, 38]
+    const COLS = [2, 14, 26]
     const tip = (key: string, top: number, left: number, text: string) => (
       <Box
         key={`card-${key}`}
@@ -167,12 +173,12 @@ export const register: Register = on => {
           hover={{ scope: 'tip-clear' }}
           alignSelf="flex-start"
         >
-          <Button key="clear" onPress={() => update($, files, () => ({}))}>
+          <Button key="clear" onPress={() => clearAll($)}>
             {PAD('🧹')}
           </Button>
         </Box>
         <Text> </Text>
-        <Text dimColor>Enter on an image opens the OS preview</Text>
+        <Text bold>Images in this session</Text>
         <Text> </Text>
         {ids.length === 0 && <Text dimColor>No images yet.</Text>}
         {ids.map((n, i) => (
@@ -218,11 +224,9 @@ export const register: Register = on => {
                 {PAD('👀')}
               </Button>
             </Box>
-            <Box key={`tip-${n}`} hover={{ scope: `tip-path-${n}` }}>
-              <Button key={`open-${n}`} plain onPress={() => show($, n)}>
-                {`[Image #${n}]`}
-              </Button>
-            </Box>
+            <Button key={`open-${n}`} plain onPress={() => show($, n)}>
+              {`[Image #${n}]`}
+            </Button>
           </Box>
         ))}
         {tip('tip-clear', 1, 1, 'Clear list')}
@@ -239,7 +243,6 @@ export const register: Register = on => {
             tip(`tip-reveal-${n}`, below, COLS[0], 'Show in Finder'),
             tip(`tip-copy-${n}`, below, COLS[1], 'Copy path'),
             tip(`tip-view-${n}`, below, COLS[2], 'View in OS preview'),
-            tip(`tip-path-${n}`, below, COLS[3], shown(n)),
           ]
         })}
       </Box>

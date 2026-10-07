@@ -1,4 +1,4 @@
-export type PreviewFile = { path: string; generation: number }
+export type PreviewFile = { path: string }
 
 declare module 'claude-code' {
   interface PluginState {
@@ -6,7 +6,7 @@ declare module 'claude-code' {
       draft: string
       files: Record<string, PreviewFile>
       origins: Record<string, string>
-      selected: number
+      cleared: Record<string, boolean>
     }
   }
 }
