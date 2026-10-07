@@ -1,0 +1,10 @@
+{
+  "name": "image-preview",
+  "version": "0.1.0",
+  "description": "Preview images pasted into the prompt, before you submit: chips above the prompt and an Images pane open them in your OS viewer",
+  "types": "./types/index.d.ts",
+  "author": {
+    "name": "Sandip Chitale"
+  },
+  "license": "MIT"
+}

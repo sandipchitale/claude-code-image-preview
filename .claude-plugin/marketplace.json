@@ -1,0 +1,14 @@
+{
+  "name": "image-preview",
+  "owner": {
+    "name": "sandipchitale"
+  },
+  "description": "Claude Code mods by Sandip Chitale",
+  "plugins": [
+    {
+      "name": "image-preview",
+      "source": "./",
+      "description": "Preview pasted [Image #N] images from above the prompt, with an Images pane to reveal, copy and open them"
+    }
+  ]
+}
