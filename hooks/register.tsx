@@ -132,7 +132,7 @@ export const register: Register = on => {
             plain
             onPress={() => show($, n)}
           >
-            {`🖼 Image #${n}`}
+            {`🖼  Image #${n}`}
           </Button>
         ))}
       </Box>
