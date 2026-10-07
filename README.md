@@ -8,7 +8,7 @@ You paste or drop an image into the prompt, don't submit, and step away. When yo
 
 This mod fills the gap: the `🖼 Image #N` chips above the prompt open the pending image in your OS viewer. It works for images pasted from the clipboard as well as dropped files, before you submit. Type a space after the `[Image #N]` tag that Claude Code inserts, so the chip appears.
 
-![The image-preview mod: the Images pane with a row per image, and the Images button above the prompt](screenshots/image-preview-mod.png)
+![The image-preview mod: the Images pane with a row per image, and the Images button and an Image chip above the prompt](screenshots/image-preview-mod.png)
 
 ## What it does
 
