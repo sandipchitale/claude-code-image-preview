@@ -160,10 +160,10 @@ export const register: Register = on => {
         display="none"
         hover={{ display: 'flex', scope: key }}
         borderStyle="round"
-        backgroundColor="#1e1e1e"
+        backgroundColor="inverseText"
         paddingX={1}
       >
-        <Text>{text}</Text>
+        <Text color="text">{text}</Text>
       </Box>
     )
     return (
@@ -181,7 +181,7 @@ export const register: Register = on => {
         <Text bold>Images in this session</Text>
         <Text> </Text>
         {ids.length === 0 && <Text dimColor>No images yet.</Text>}
-        {ids.map((n, i) => (
+        {ids.map(n => (
           <Box
             key={`row-${n}`}
             flexDirection="row"
@@ -189,8 +189,7 @@ export const register: Register = on => {
             gap={2}
             paddingX={1}
             paddingY={1}
-            backgroundColor={i % 2 === 0 ? '#2b2b2b' : undefined}
-            hover={{ backgroundColor: '#444444' }}
+            hover={{ backgroundColor: 'subtle' }}
           >
             <Box
               key={`reveal-box-${n}`}
