@@ -21,7 +21,7 @@ This mod fills the gap: the `🖼 Image #N` chips above the prompt open the pend
 
 ## How it works
 
-Claude Code saves each pasted image to `<session>/images/N.png` when you submit the prompt. The mod scans that folder on every prompt submit, and whenever you open the pane or run `/image-preview`. A freshly pasted image therefore shows up after you submit.
+Claude Code saves each pasted image to `<session>/images/N.png` when you submit the prompt. The mod scans that folder on every prompt submit, and whenever you open the pane or run `/image-preview`. The `🖼 Image #N` chips work before you submit. The Images pane lists images found on disk, so a new image appears there after you submit or reopen the pane.
 
 ## Install
 
@@ -31,11 +31,14 @@ Try it from a checkout:
 claude --plugin-dir /path/to/image-preview
 ```
 
-Or, from a GitHub repo containing this folder:
+Or install it from GitHub, inside Claude Code:
 
 ```
-/plugin install image-preview --marketplace <owner>/<repo>
+/plugin marketplace add sandipchitale/claude-code-image-preview
+/plugin install image-preview@image-preview
 ```
+
+Then run `/reload-plugins` (or restart). Choose **user** scope to use it in every project.
 
 ## Limits
 
